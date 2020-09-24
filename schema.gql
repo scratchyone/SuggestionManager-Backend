@@ -1,0 +1,36 @@
+type Query {
+  project(key: String!): Project!
+}
+type Project {
+  id: Int!
+  ownerName: String!
+  projectName: String!
+  lastReadTimestamp: Int
+  tokens: [Token]
+  suggestions: [Suggestion]
+}
+type Suggestion {
+  id: Int!
+  displayName: String!
+  suggestionText: String!
+  project: Project
+  timestamp: String!
+  inTrash: Boolean!
+  trashedTimestamp: Int
+}
+type Token {
+  id: Int!
+  key: String!
+  permission: String!
+}
+type Mutation {
+  newProject(ownerName: String!, projectName: String!): Project!
+  genToken(key: String!, permission: String!): Token!
+  refreshLastRead(key: String!): Boolean!
+  addSuggestion(
+    displayName: String!
+    suggestionText: String!
+    key: String!
+  ): Suggestion!
+  deleteSuggestion(id: Int!, key: String!): Suggestion!
+}
