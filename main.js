@@ -186,6 +186,22 @@ var root = {
       return new Error("Key doesn't have permission to do that");
     }
   },
+  undeleteSuggestion: async ({ id, key }) => {
+    let res = await Token.query().where('key', key);
+    if (!res.length) return new Error('Invalid Key');
+    if (res[0].hasPermission('VIEW_SUGGESTIONS')) {
+      await Suggestion.query()
+        .patch({
+          inTrash: false,
+          trashedTimestamp: null,
+        })
+        .where('id', id)
+        .where('projectId', res[0].projectId);
+      return await Suggestion.query().where('id', id).first();
+    } else {
+      return new Error("Key doesn't have permission to do that");
+    }
+  },
   refreshLastRead: async ({ key }) => {
     let res = await Token.query().where('key', key);
     if (!res.length) return new Error('Invalid Key');
@@ -213,7 +229,16 @@ var root = {
     }
   },
 };
-
+async function clearOldItems() {
+  console.log(
+    'Cleared ' +
+      (await Suggestion.query()
+        .where('trashedTimestamp', '<', (Date.now() - 432000 * 1000) / 1000)
+        .delete())
+  );
+}
+setInterval(clearOldItems, 1000 * 60 * 60);
+clearOldItems();
 var app = express();
 var cors = require('cors');
 app.use(cors());

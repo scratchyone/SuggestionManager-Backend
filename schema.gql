@@ -33,4 +33,5 @@ type Mutation {
     key: String!
   ): Suggestion!
   deleteSuggestion(id: Int!, key: String!): Suggestion!
+  undeleteSuggestion(id: Int!, key: String!): Suggestion!
 }
