@@ -233,7 +233,7 @@ async function clearOldItems() {
   console.log(
     'Cleared ' +
       (await Suggestion.query()
-        .where('trashedTimestamp', '<', (Date.now() - 432000 * 1000) / 1000)
+        .where('trashedTimestamp', '<', (Date.now() - 432000 * 1000) / 1000) // 5 days in the future in unix epoch in seconds
         .delete())
   );
 }
