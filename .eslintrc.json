@@ -1,0 +1,22 @@
+{
+  "env": {
+    "node": true,
+    "commonjs": true
+  },
+  "extends": ["eslint:recommended"],
+  "globals": {
+    "Atomics": "readonly",
+    "SharedArrayBuffer": "readonly"
+  },
+  "parserOptions": {
+    "ecmaVersion": 2018,
+    "sourceType": "script"
+  },
+  "plugins": ["prettier"],
+  "rules": {
+    "quotes": ["error", "single", "avoid-escape"],
+    "no-unused-vars": ["warn"],
+    "no-empty": "off",
+    "prettier/prettier": "error"
+  }
+}

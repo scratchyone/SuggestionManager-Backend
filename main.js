@@ -65,7 +65,7 @@ class Token extends Model {
   static get tableName() {
     return 'tokens';
   }
-  $beforeInsert(context) {
+  $beforeInsert() {
     this.key = uuidv4();
   }
   static get relationMappings() {
