@@ -377,6 +377,46 @@ app.post('/projects/:id/suggestions', async (req, res) => {
     )
   );
 });
+app.delete('/projects/:id', async (req, res) => {
+  let token = await Token.query().where(
+    'key',
+    (req.headers.authorization &&
+      req.headers.authorization.replace('Bearer ', '')) ||
+      ''
+  );
+  if (!token.length) {
+    res.status(404).send({ error: 'Invalid Key' });
+    return;
+  }
+  token = token[0];
+  if (
+    token.projectId.toString() !== req.params.id ||
+    !token.hasPermission('ADMIN')
+  ) {
+    res.status(403).send({ error: 'Invalid Key' });
+    return;
+  }
+  await Project.query().delete().where('id', req.params.id);
+  res.send({ success: true });
+});
+app.post('/projects/', async (req, res) => {
+  if (req.body.ownerName.length < 3)
+    return res.status(400).send({ error: 'Your display name is too short' });
+  if (req.body.ownerName.length > 30)
+    return res.status(400).send({ error: 'Your display name is too long' });
+  if (req.body.projectName.length < 3)
+    return res.status(400).send({ error: 'Your project name is too short' });
+  if (req.body.projectName.length > 30)
+    return res.status(400).send({ error: 'Your project name is too long' });
+  res.send(
+    await Project.query().insertGraphAndFetch({
+      ownerName: req.body.ownerName,
+      projectName: req.body.projectName,
+      lastReadTimestamp: Math.round(Date.now() / 1000),
+      tokens: [{ permission: 'ADMIN' }, { permission: 'ADD_SUGGESTIONS' }],
+    })
+  );
+});
 app.get('/tokens/:key', async (req, res) => {
   let token = await Token.query().where('key', req.params.key);
   if (!token.length) {
