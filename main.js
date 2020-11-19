@@ -152,11 +152,7 @@ var root = {
       return new Error('Your suggestion is too short');
     if (suggestionText.length > 500)
       return new Error('Your suggestion is too long');
-    if (
-      res[0].permission == 'ADMIN' ||
-      res[0].permission == 'VIEW_SUGGESTIONS' ||
-      res[0].permission == 'ADD_SUGGESTIONS'
-    ) {
+    if (res[0].hasPermission('ADD_SUGGESTIONS')) {
       return await Suggestion.query().insertGraphAndFetch(
         {
           displayName: displayName,
@@ -242,6 +238,60 @@ clearOldItems();
 var app = express();
 var cors = require('cors');
 app.use(cors());
+app.get('/projects/:id', async (req, res) => {
+  let token = await Token.query().where(
+    'key',
+    (req.headers.authorization &&
+      req.headers.authorization.replace('Bearer ', '')) ||
+      ''
+  );
+  if (!token.length) {
+    res.status(404).send({ error: 'Invalid Key' });
+    return;
+  }
+  token = token[0];
+  if (token.projectId.toString() !== req.params.id) {
+    res.status(403).send({ error: 'Invalid Key' });
+    return;
+  }
+  let query = Project.query()
+    .where('id', req.params.id)
+    .withGraphFetched('suggestions')
+    .modifyGraph('suggestions', (builder) => {
+      builder.orderBy('id', 'desc');
+    })
+    .withGraphFetched('tokens');
+  const project = await query.first();
+  res.send({
+    ...(token.hasPermission('ADD_SUGGESTIONS')
+      ? {
+          id: project.id,
+          projectName: project.projectName,
+          ownerName: project.ownerName,
+        }
+      : {}),
+    ...(token.hasPermission('VIEW_SUGGESTIONS')
+      ? {
+          lastReadTimestamp: project.lastReadTimestamp,
+          suggestions: project.suggestions,
+        }
+      : {}),
+    ...(token.hasPermission('VIEW_TOKENS')
+      ? {
+          tokens: project.tokens,
+        }
+      : {}),
+  });
+});
+app.get('/tokens/:key', async (req, res) => {
+  let token = await Token.query().where('key', req.params.key);
+  if (!token.length) {
+    res.status(404).send({ error: 'Invalid Key' });
+    return;
+  }
+  token = token[0];
+  res.send(token);
+});
 app.use(
   '/graphql',
   graphqlHTTP({
