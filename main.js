@@ -238,6 +238,7 @@ clearOldItems();
 var app = express();
 var cors = require('cors');
 app.use(cors());
+app.use(express.json());
 app.get('/projects/:id', async (req, res) => {
   let token = await Token.query().where(
     'key',
@@ -282,6 +283,45 @@ app.get('/projects/:id', async (req, res) => {
         }
       : {}),
   });
+});
+app.post('/projects/:id/suggestions', async (req, res) => {
+  let token = await Token.query().where(
+    'key',
+    (req.headers.authorization &&
+      req.headers.authorization.replace('Bearer ', '')) ||
+      ''
+  );
+  if (!token.length) {
+    res.status(404).send({ error: 'Invalid Key' });
+    return;
+  }
+  token = token[0];
+  if (
+    token.projectId.toString() !== req.params.id ||
+    !token.hasPermission('ADD_SUGGESTIONS')
+  ) {
+    res.status(403).send({ error: 'Invalid Key' });
+    return;
+  }
+  if (req.body.displayName.length < 3)
+    return res.status(400).send({ error: 'Your display name is too short' });
+  if (req.body.displayName.length > 30)
+    return res.status(400).send({ error: 'Your display name is too long' });
+  if (req.body.suggestionText.length < 3)
+    return res.status(400).send({ error: 'Your suggestion is too short' });
+  if (req.body.suggestionText.length > 500)
+    return res.status(400).send({ error: 'Your suggestion is too long' });
+  res.send(
+    await Suggestion.query().insertGraphAndFetch(
+      {
+        displayName: req.body.displayName,
+        suggestionText: req.body.suggestionText,
+        project: { id: req.params.id },
+        timestamp: Math.round(Date.now() / 1000),
+      },
+      { relate: true }
+    )
+  );
 });
 app.get('/tokens/:key', async (req, res) => {
   let token = await Token.query().where('key', req.params.key);
