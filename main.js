@@ -397,6 +397,8 @@ app.delete('/projects/:id', async (req, res) => {
     return;
   }
   await Project.query().delete().where('id', req.params.id);
+  await Token.query().delete().where('projectId', req.params.id);
+  await Suggestion.query().delete().where('projectId', req.params.id);
   res.send({ success: true });
 });
 app.post('/projects/', async (req, res) => {
