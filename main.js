@@ -96,6 +96,9 @@ class Token extends Model {
         this.permission == 'ADMIN' || this.permission == 'VIEW_SUGGESTIONS'
       );
     }
+    if (perm == 'ADMIN') {
+      return this.permission == 'ADMIN';
+    }
   }
 }
 
@@ -109,6 +112,7 @@ var schema = buildSchema(fs.readFileSync('schema.gql').toString());
 // The root provides a resolver function for each API endpoint
 var root = {
   project: async ({ key }) => {
+    console.warn('WARNING project IS DEPRECATED');
     let res = await Token.query().where('key', key);
     if (!res.length) return new Error('Invalid Key');
     res = res[0];
@@ -126,6 +130,7 @@ var root = {
     return (await query.first()).project;
   },
   newProject: async ({ ownerName, projectName }) => {
+    console.warn('WARNING newProject IS DEPRECATED');
     if (ownerName.length < 3)
       return new Error('Your display name is too short');
     if (ownerName.length > 30)
@@ -142,6 +147,7 @@ var root = {
     });
   },
   addSuggestion: async ({ displayName, suggestionText, key }) => {
+    console.warn('WARNING addSuggestion IS DEPRECATED');
     let res = await Token.query().where('key', key);
     if (!res.length) return new Error('Invalid Key');
     if (displayName.length < 3)
@@ -167,6 +173,7 @@ var root = {
     }
   },
   deleteSuggestion: async ({ id, key }) => {
+    console.warn('WARNING deleteSuggestion IS DEPRECATED');
     let res = await Token.query().where('key', key);
     if (!res.length) return new Error('Invalid Key');
     if (res[0].hasPermission('VIEW_SUGGESTIONS')) {
@@ -183,6 +190,7 @@ var root = {
     }
   },
   undeleteSuggestion: async ({ id, key }) => {
+    console.warn('WARNING undeleteSuggestion IS DEPRECATED');
     let res = await Token.query().where('key', key);
     if (!res.length) return new Error('Invalid Key');
     if (res[0].hasPermission('VIEW_SUGGESTIONS')) {
@@ -199,6 +207,7 @@ var root = {
     }
   },
   refreshLastRead: async ({ key }) => {
+    console.warn('WARNING refreshLastRead IS DEPRECATED');
     let res = await Token.query().where('key', key);
     if (!res.length) return new Error('Invalid Key');
     if (res[0].hasPermission('VIEW_SUGGESTIONS')) {
@@ -213,6 +222,7 @@ var root = {
     }
   },
   genToken: async ({ key, permission }) => {
+    console.warn('WARNING genToken IS DEPRECATED');
     let res = await Token.query().where('key', key);
     if (!res.length) return new Error('Invalid Key');
     if (res[0].hasPermission('VIEW_TOKENS')) {
@@ -284,6 +294,50 @@ app.get('/projects/:id', async (req, res) => {
       : {}),
   });
 });
+app.patch('/projects/:id', async (req, res) => {
+  let token = await Token.query().where(
+    'key',
+    (req.headers.authorization &&
+      req.headers.authorization.replace('Bearer ', '')) ||
+      ''
+  );
+  if (!token.length) {
+    res.status(404).send({ error: 'Invalid Key' });
+    return;
+  }
+  token = token[0];
+  if (token.projectId.toString() !== req.params.id) {
+    res.status(403).send({ error: 'Invalid Key' });
+    return;
+  }
+  const validChanges = [
+    {
+      key: 'projectName',
+      permission: 'ADMIN',
+    },
+    {
+      key: 'ownerName',
+      permission: 'ADMIN',
+    },
+    { key: 'lastReadTimestamp', permission: 'VIEW_SUGGESTIONS' },
+  ];
+  for (const [key, value] of Object.entries(req.body)) {
+    const foundChange = validChanges.find(
+      (vc) => vc.key === key && token.hasPermission(vc.permission)
+    );
+    if (foundChange) {
+      await Project.query()
+        .where('id', req.params.id)
+        .patch({ [key]: value });
+    } else {
+      res.status(403).send({
+        error: `You don't have permission to modify field ${key}. Some other fields may have been modified`,
+      });
+      return;
+    }
+  }
+  res.send(await Project.query().where('id', req.params.id).first());
+});
 app.post('/projects/:id/suggestions', async (req, res) => {
   let token = await Token.query().where(
     'key',
@@ -331,6 +385,62 @@ app.get('/tokens/:key', async (req, res) => {
   }
   token = token[0];
   res.send(token);
+});
+app.patch('/projects/:id/suggestions/:sid', async (req, res) => {
+  let token = await Token.query().where(
+    'key',
+    (req.headers.authorization &&
+      req.headers.authorization.replace('Bearer ', '')) ||
+      ''
+  );
+  if (!token.length) {
+    res.status(404).send({ error: 'Invalid Key' });
+    return;
+  }
+  token = token[0];
+  if (token.projectId.toString() !== req.params.id) {
+    res.status(403).send({ error: 'Invalid Key' });
+    return;
+  }
+  const suggestion = await Suggestion.query()
+    .where('id', req.params.sid)
+    .first();
+  if (!suggestion || suggestion.projectId.toString() !== req.params.id) {
+    res.status(403).send({ error: 'Invalid Suggestion ID' });
+    return;
+  }
+  const validChanges = [
+    {
+      key: 'inTrash',
+      permission: 'VIEW_SUGGESTIONS',
+      clean: (v) => Boolean(v),
+      runAfter: async (v) => {
+        if (v)
+          await Suggestion.query()
+            .where('id', req.params.sid)
+            .patch({ trashedTimestamp: Math.round(Date.now() / 1000) });
+        else
+          await Suggestion.query()
+            .where('id', req.params.sid)
+            .patch({ trashedTimestamp: null });
+      },
+    },
+  ];
+  for (const [key, value] of Object.entries(req.body)) {
+    const foundChange = validChanges.find(
+      (vc) => vc.key === key && token.hasPermission(vc.permission)
+    );
+    if (foundChange) {
+      await Suggestion.query()
+        .where('id', req.params.sid)
+        .patch({ [key]: foundChange.clean ? foundChange.clean(value) : value });
+      if (foundChange.runAfter)
+        await foundChange.runAfter(
+          foundChange.clean ? foundChange.clean(value) : value
+        );
+    }
+  }
+  res.send(await Suggestion.query().where('id', req.params.sid).first());
 });
 app.use(
   '/graphql',
