@@ -133,7 +133,7 @@ var root = {
     console.warn('WARNING newProject IS DEPRECATED');
     if (ownerName.length < 3)
       return new Error('Your display name is too short');
-    if (ownerName.length > 30)
+    if (ownerName.length > 32)
       return new Error('Your display name is too long');
     if (projectName.length < 3)
       return new Error('Your project name is too short');
@@ -152,7 +152,7 @@ var root = {
     if (!res.length) return new Error('Invalid Key');
     if (displayName.length < 3)
       return new Error('Your display name is too short');
-    if (displayName.length > 30)
+    if (displayName.length > 32)
       return new Error('Your display name is too long');
     if (suggestionText.length < 3)
       return new Error('Your suggestion is too short');
