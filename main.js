@@ -359,7 +359,7 @@ app.post('/projects/:id/suggestions', async (req, res) => {
   }
   if (req.body.displayName.length < 3)
     return res.status(400).send({ error: 'Your display name is too short' });
-  if (req.body.displayName.length > 30)
+  if (req.body.displayName.length > 35)
     return res.status(400).send({ error: 'Your display name is too long' });
   if (req.body.suggestionText.length < 3)
     return res.status(400).send({ error: 'Your suggestion is too short' });
@@ -404,7 +404,7 @@ app.delete('/projects/:id', async (req, res) => {
 app.post('/projects/', async (req, res) => {
   if (req.body.ownerName.length < 3)
     return res.status(400).send({ error: 'Your display name is too short' });
-  if (req.body.ownerName.length > 30)
+  if (req.body.ownerName.length > 35)
     return res.status(400).send({ error: 'Your display name is too long' });
   if (req.body.projectName.length < 3)
     return res.status(400).send({ error: 'Your project name is too short' });
